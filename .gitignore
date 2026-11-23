@@ -1,0 +1,27 @@
+# Build output
+target/
+
+# Local H2 database files (never commit data)
+data/
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Secrets / environment files
+.env
+.env.*
+*.env
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
