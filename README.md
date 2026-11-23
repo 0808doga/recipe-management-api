@@ -100,6 +100,7 @@ recipe-management-api
         │   ├── service/       Unit tests with Mockito
         │   ├── controller/    Integration tests with MockMvc (full application)
         │   ├── repository/    Repository tests with @DataJpaTest
+        │   ├── config/        DataSeeder test (sample data created once)
         │   ├── security/      JwtService tests
         │   └── validation/    Validation tests
         └── resources/application-test.properties   Test profile (in-memory H2)
@@ -225,15 +226,26 @@ export JWT_SECRET="my-own-very-long-secret-key-with-at-least-32-chars"
 
 ## 8. Test accounts (local development only)
 
-The `DataSeeder` creates these accounts and 12 sample recipes the first time the app starts
-in the `dev` profile. They do not exist in tests or in any other profile.
+The `DataSeeder` creates these accounts and the sample data below the first time the app starts
+in the `dev` profile. It only adds data when the recipes table is empty, so restarting the app
+never creates duplicates. This data does not exist in tests or in any other profile.
 
 | Role | Email | Password |
 |---|---|---|
 | ADMIN | `admin@recipes.local` | `Admin12345` |
 | USER | `user@recipes.local` | `User12345` |
 
-Sample recipes 1–7 belong to the USER account, recipes 8–12 belong to the ADMIN account.
+| ID | Recipe | Time | Servings | Ingredients | Owner |
+|---|---|---|---|---|---|
+| 1 | Pasta | 20 min | 2 | Pasta, Tomato sauce, Cheese | USER |
+| 2 | Pizza | 35 min | 4 | Pizza dough, Tomato sauce, Mozzarella | USER |
+| 3 | Salad | 10 min | 2 | Lettuce, Tomato, Olive oil | USER |
+| 4 | Omelette | 10 min | 1 | Egg, Butter, Salt | ADMIN |
+| 5 | Soup | 40 min | 4 | Potato, Carrot, Water | ADMIN |
+
+Sample meal plans (owned by the USER account): tomorrow BREAKFAST → Omelette,
+tomorrow LUNCH → Salad, the day after tomorrow DINNER → Pasta
+(dates are counted from the day the database is created).
 New accounts created with `/api/auth/register` always get the `USER` role.
 
 ## 9. Authentication (how to use the JWT)
@@ -327,14 +339,14 @@ Response `201 Created` (shortened):
 
 ```json
 {
-  "id": 13,
+  "id": 6,
   "title": "Spaghetti Bolognese",
   "preparationTime": 45,
   "servings": 4,
   "ownerId": 2,
   "ownerName": "Demo User",
   "ingredients": [
-    { "id": 36, "name": "Spaghetti", "quantity": 400.0, "unit": "g", "recipeId": 13,
+    { "id": 16, "name": "Spaghetti", "quantity": 400.0, "unit": "g", "recipeId": 6,
       "audit": { "createdAt": "2026-11-25T10:15:30", "createdBy": "user@recipes.local",
                  "updatedAt": "2026-11-25T10:15:30", "lastModifiedBy": "user@recipes.local" } }
   ],
@@ -343,12 +355,12 @@ Response `201 Created` (shortened):
 }
 ```
 
-**Paged list** – `GET /api/recipes?page=0&size=5&sort=preparationTime,asc&sort=title,asc`
+**Paged list** – `GET /api/recipes?page=0&size=2&sort=preparationTime,asc&sort=title,asc`
 
 ```json
 {
-  "content": [ "... 5 recipes ..." ],
-  "page": 0, "size": 5, "totalElements": 12, "totalPages": 3,
+  "content": [ "... Omelette, Salad ..." ],
+  "page": 0, "size": 2, "totalElements": 5, "totalPages": 3,
   "first": true, "last": false, "sort": "preparationTime: ASC,title: ASC"
 }
 ```
@@ -391,12 +403,12 @@ open target/site/jacoco/index.html
 `./mvnw verify` runs all tests, creates the report and **fails the build** if line coverage is below
 60% overall or below 70% in the `service` package.
 
-Measured result (last run, 114 tests, all passing):
+Measured result (last run, 115 tests, all passing):
 
 | Package | Line coverage |
 |---|---|
 | service | 100.0% |
-| **Overall** | **86.6%** |
+| **Overall** | **96.3%** |
 
 ## 14. Troubleshooting
 
@@ -408,7 +420,7 @@ Measured result (last run, 114 tests, all passing):
 | 401 in Swagger | Log in again, click **Authorize**, paste only the token (no `Bearer`, no quotes). Old tokens stop working after a restart unless `JWT_SECRET` is set. |
 | 403 in Swagger | You are logged in with a role that is not allowed, or the record belongs to another user. |
 | `Database may be already in use` | The app is already running in another Terminal. Stop it first. |
-| Want a fresh database | Stop the app, run `rm -rf data`, start again. |
+| Want a fresh database / the sample data | Stop the app, run `rm -rf data`, start again. Sample data is only created when the database has no recipes. |
 | Meal plan date error | The date must be today or later, format `yyyy-MM-dd`. |
 
 ## 15. Upload to GitHub

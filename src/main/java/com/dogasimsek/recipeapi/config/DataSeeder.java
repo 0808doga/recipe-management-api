@@ -1,9 +1,12 @@
 package com.dogasimsek.recipeapi.config;
 
 import com.dogasimsek.recipeapi.entity.Ingredient;
+import com.dogasimsek.recipeapi.entity.MealPlan;
+import com.dogasimsek.recipeapi.entity.MealType;
 import com.dogasimsek.recipeapi.entity.Recipe;
 import com.dogasimsek.recipeapi.entity.Role;
 import com.dogasimsek.recipeapi.entity.User;
+import com.dogasimsek.recipeapi.repository.MealPlanRepository;
 import com.dogasimsek.recipeapi.repository.RecipeRepository;
 import com.dogasimsek.recipeapi.repository.UserRepository;
 import org.slf4j.Logger;
@@ -15,10 +18,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 /**
  * Creates sample data when the application starts in the "dev" profile:
- * one ADMIN account, one USER account and some recipes (useful for pagination demos).
- * Nothing is created if the data already exists.
+ * - 2 accounts: one ADMIN and one USER
+ * - 5 recipes (Pasta, Pizza, Salad, Omelette, Soup), each with 3 ingredients
+ * - 3 meal plans for the USER account
+ * The data is only created when the recipes table is empty,
+ * so restarting the application never creates duplicates.
  */
 @Component
 @Profile("dev")
@@ -28,6 +36,7 @@ public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final RecipeRepository recipeRepository;
+    private final MealPlanRepository mealPlanRepository;
     private final PasswordEncoder passwordEncoder;
     private final String adminEmail;
     private final String adminPassword;
@@ -36,6 +45,7 @@ public class DataSeeder implements CommandLineRunner {
 
     public DataSeeder(UserRepository userRepository,
                       RecipeRepository recipeRepository,
+                      MealPlanRepository mealPlanRepository,
                       PasswordEncoder passwordEncoder,
                       @Value("${app.seed.admin-email}") String adminEmail,
                       @Value("${app.seed.admin-password}") String adminPassword,
@@ -43,6 +53,7 @@ public class DataSeeder implements CommandLineRunner {
                       @Value("${app.seed.user-password}") String userPassword) {
         this.userRepository = userRepository;
         this.recipeRepository = recipeRepository;
+        this.mealPlanRepository = mealPlanRepository;
         this.passwordEncoder = passwordEncoder;
         this.adminEmail = adminEmail;
         this.adminPassword = adminPassword;
@@ -56,10 +67,51 @@ public class DataSeeder implements CommandLineRunner {
         User admin = createUserIfMissing("Demo Admin", adminEmail, adminPassword, Role.ADMIN);
         User user = createUserIfMissing("Demo User", userEmail, userPassword, Role.USER);
 
-        if (recipeRepository.count() == 0) {
-            createSampleRecipes(user, admin);
-            log.info("Sample recipes created");
+        // Only add sample data to an empty database (no duplicates after a restart)
+        if (recipeRepository.count() > 0) {
+            log.info("Sample data already exists, nothing created");
+            return;
         }
+
+        // Recipes 1-3 belong to the USER, recipes 4-5 belong to the ADMIN
+        Recipe pasta = saveRecipe(user, "Pasta", "Simple pasta with tomato sauce",
+                "1. Boil the pasta for 10 minutes. 2. Warm the tomato sauce. 3. Mix the pasta with the sauce.",
+                20, 2,
+                new Ingredient("Pasta", 200.0, "g"),
+                new Ingredient("Tomato sauce", 250.0, "ml"),
+                new Ingredient("Cheese", 50.0, "g"));
+        saveRecipe(user, "Pizza", "Homemade cheese pizza",
+                "1. Roll out the dough. 2. Add tomato sauce and cheese. 3. Bake for 15 minutes at 220 C.",
+                35, 4,
+                new Ingredient("Pizza dough", 500.0, "g"),
+                new Ingredient("Tomato sauce", 150.0, "ml"),
+                new Ingredient("Mozzarella", 200.0, "g"));
+        Recipe salad = saveRecipe(user, "Salad", "Fresh green salad",
+                "1. Wash and cut the vegetables. 2. Put them in a bowl. 3. Add olive oil and mix.",
+                10, 2,
+                new Ingredient("Lettuce", 1.0, "piece"),
+                new Ingredient("Tomato", 2.0, "piece"),
+                new Ingredient("Olive oil", 2.0, "tbsp"));
+        Recipe omelette = saveRecipe(admin, "Omelette", "Quick egg omelette",
+                "1. Beat the eggs with salt. 2. Pour them into a hot pan with butter. 3. Cook for 3 minutes and fold.",
+                10, 1,
+                new Ingredient("Egg", 3.0, "piece"),
+                new Ingredient("Butter", 10.0, "g"),
+                new Ingredient("Salt", 1.0, "pinch"));
+        saveRecipe(admin, "Soup", "Warm vegetable soup",
+                "1. Cut the vegetables. 2. Boil them in water for 25 minutes. 3. Blend and serve.",
+                40, 4,
+                new Ingredient("Potato", 2.0, "piece"),
+                new Ingredient("Carrot", 2.0, "piece"),
+                new Ingredient("Water", 1.0, "l"));
+
+        // 3 meal plans for the USER (tomorrow and the day after)
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        saveMealPlan(user, omelette, tomorrow, MealType.BREAKFAST);
+        saveMealPlan(user, salad, tomorrow, MealType.LUNCH);
+        saveMealPlan(user, pasta, tomorrow.plusDays(1), MealType.DINNER);
+
+        log.info("Sample data created: 5 recipes and 3 meal plans");
     }
 
     private User createUserIfMissing(String name, String email, String rawPassword, Role role) {
@@ -69,58 +121,8 @@ public class DataSeeder implements CommandLineRunner {
         });
     }
 
-    private void createSampleRecipes(User user, User admin) {
-        saveRecipe(user, "Spaghetti Carbonara", "Classic Italian pasta with eggs and cheese",
-                "Boil pasta. Fry pancetta. Mix eggs with cheese. Combine off the heat.", 25, 2,
-                new Ingredient("Spaghetti", 200.0, "g"), new Ingredient("Egg", 2.0, "piece"),
-                new Ingredient("Parmesan", 50.0, "g"));
-        saveRecipe(user, "Menemen", "Turkish scrambled eggs with tomatoes and peppers",
-                "Cook peppers in oil, add tomatoes, then add eggs and stir gently.", 15, 2,
-                new Ingredient("Egg", 3.0, "piece"), new Ingredient("Tomato", 2.0, "piece"),
-                new Ingredient("Green pepper", 2.0, "piece"));
-        saveRecipe(user, "Lentil Soup", "Warm red lentil soup",
-                "Cook onion and carrot, add lentils and water, boil 25 minutes, blend.", 40, 4,
-                new Ingredient("Red lentils", 250.0, "g"), new Ingredient("Onion", 1.0, "piece"),
-                new Ingredient("Water", 1.5, "l"));
-        saveRecipe(user, "Greek Salad", "Fresh salad with feta cheese",
-                "Chop vegetables, add olives and feta, dress with olive oil.", 10, 2,
-                new Ingredient("Cucumber", 1.0, "piece"), new Ingredient("Feta", 100.0, "g"),
-                new Ingredient("Olive oil", 2.0, "tbsp"));
-        saveRecipe(user, "Pancakes", "Fluffy breakfast pancakes",
-                "Mix flour, milk and eggs. Cook small portions in a hot pan.", 20, 4,
-                new Ingredient("Flour", 200.0, "g"), new Ingredient("Milk", 300.0, "ml"),
-                new Ingredient("Egg", 2.0, "piece"));
-        saveRecipe(user, "Chicken Curry", "Mild chicken curry with rice",
-                "Brown chicken, add onion, curry paste and coconut milk, simmer 20 minutes.", 45, 4,
-                new Ingredient("Chicken breast", 500.0, "g"), new Ingredient("Coconut milk", 400.0, "ml"),
-                new Ingredient("Curry paste", 2.0, "tbsp"));
-        saveRecipe(user, "Guacamole", "Avocado dip",
-                "Mash avocados, add lime juice, onion, salt and chopped tomato.", 10, 4,
-                new Ingredient("Avocado", 3.0, "piece"), new Ingredient("Lime", 1.0, "piece"),
-                new Ingredient("Salt", 1.0, "pinch"));
-        saveRecipe(admin, "Banana Bread", "Sweet bread made with ripe bananas",
-                "Mash bananas, mix with butter, sugar, eggs and flour, bake 60 minutes at 175C.", 75, 8,
-                new Ingredient("Banana", 3.0, "piece"), new Ingredient("Flour", 250.0, "g"),
-                new Ingredient("Sugar", 150.0, "g"));
-        saveRecipe(admin, "Tomato Soup", "Simple creamy tomato soup",
-                "Cook onion and garlic, add tomatoes and stock, simmer and blend.", 30, 4,
-                new Ingredient("Tomato", 800.0, "g"), new Ingredient("Garlic", 2.0, "clove"),
-                new Ingredient("Vegetable stock", 500.0, "ml"));
-        saveRecipe(admin, "Omelette", "Quick cheese omelette",
-                "Beat eggs, pour into a hot pan, add cheese and fold.", 8, 1,
-                new Ingredient("Egg", 3.0, "piece"), new Ingredient("Cheese", 30.0, "g"));
-        saveRecipe(admin, "Hummus", "Chickpea dip with tahini",
-                "Blend chickpeas, tahini, lemon juice, garlic and olive oil until smooth.", 15, 6,
-                new Ingredient("Chickpeas", 400.0, "g"), new Ingredient("Tahini", 3.0, "tbsp"),
-                new Ingredient("Lemon juice", 2.0, "tbsp"));
-        saveRecipe(admin, "Overnight Oats", "No-cook breakfast oats",
-                "Mix oats, milk and yogurt in a jar. Keep in the fridge overnight.", 5, 1,
-                new Ingredient("Oats", 50.0, "g"), new Ingredient("Milk", 120.0, "ml"),
-                new Ingredient("Yogurt", 2.0, "tbsp"));
-    }
-
-    private void saveRecipe(User owner, String title, String description, String instructions,
-                            int preparationTime, int servings, Ingredient... ingredients) {
+    private Recipe saveRecipe(User owner, String title, String description, String instructions,
+                              int preparationTime, int servings, Ingredient... ingredients) {
         Recipe recipe = new Recipe();
         recipe.setOwner(owner);
         recipe.setTitle(title);
@@ -131,6 +133,15 @@ public class DataSeeder implements CommandLineRunner {
         for (Ingredient ingredient : ingredients) {
             recipe.addIngredient(ingredient);
         }
-        recipeRepository.save(recipe);
+        return recipeRepository.save(recipe);
+    }
+
+    private void saveMealPlan(User owner, Recipe recipe, LocalDate date, MealType mealType) {
+        MealPlan mealPlan = new MealPlan();
+        mealPlan.setOwner(owner);
+        mealPlan.setRecipe(recipe);
+        mealPlan.setDate(date);
+        mealPlan.setMealType(mealType);
+        mealPlanRepository.save(mealPlan);
     }
 }

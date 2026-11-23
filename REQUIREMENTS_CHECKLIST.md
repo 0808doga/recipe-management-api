@@ -73,7 +73,7 @@ Package prefix below: `com.dogasimsek.recipeapi` (shortened to `…`).
 | Normalized schema | 4 tables, no repeated data, FKs (`README.md` §5 diagram) | – | COMPLETE |
 | Data types and constraints | `nullable = false`, lengths, unique `users.email`, unique `(owner_id, plan_date, meal_type)`, named FKs | – | COMPLETE |
 | Indexed fields for search | `idx_recipe_title`, `idx_recipe_owner`, `idx_ingredient_name`, `idx_ingredient_recipe`, `idx_meal_plan_owner_date` | verified in generated DDL | COMPLETE |
-| Sample data (optional seeder) | `config/DataSeeder` – 2 accounts, 12 recipes | verified on startup log | COMPLETE |
+| Sample data (optional seeder) | `config/DataSeeder` – 2 accounts, 5 recipes (3 ingredients each), 3 meal plans; created only when no recipes exist | `DataSeederTest.createsSampleDataOnlyOnce`; restart verified (no duplicates) | COMPLETE |
 
 ### 2.6 API documentation
 
@@ -92,11 +92,11 @@ Package prefix below: `com.dogasimsek.recipeapi` (shortened to `…`).
 | Unit tests for service layer | `AuthServiceTest`, `RecipeServiceTest`, `IngredientServiceTest`, `MealPlanServiceTest`, `AdminServiceTest`, `UserServiceTest` (Mockito) | 49 tests pass | COMPLETE |
 | Integration tests for critical endpoints | `AuthControllerIntegrationTest`, `RecipeControllerIntegrationTest`, `IngredientControllerIntegrationTest`, `MealPlanControllerIntegrationTest`, `AdminControllerIntegrationTest`, `ApplicationIntegrationTest` | 46 tests pass | COMPLETE |
 | Repository tests (optional) | `RecipeRepositoryTest` (`@DataJpaTest`) | 4 tests pass | COMPLETE |
-| Other tests | `JwtServiceTest` (7), `ValidationTest` (8) | pass | COMPLETE |
+| Other tests | `JwtServiceTest` (7), `ValidationTest` (8), `DataSeederTest` (1) | pass | COMPLETE |
 | Service coverage ≥ 70% | JaCoCo | **100.0 % lines** (99.4 % instructions) | COMPLETE |
-| Overall coverage ≥ 60% | JaCoCo | **86.6 % lines** (79.6 % instructions) | COMPLETE |
+| Overall coverage ≥ 60% | JaCoCo | **96.3 % lines** | COMPLETE |
 
-Total: **114 tests, 0 failures, 0 errors** (`./mvnw verify`, BUILD SUCCESS, "All coverage checks have been met").
+Total: **115 tests, 0 failures, 0 errors** (`./mvnw verify`, BUILD SUCCESS, "All coverage checks have been met").
 
 ## 3. Additional features (3 chosen)
 
@@ -147,7 +147,7 @@ Total: **114 tests, 0 failures, 0 errors** (`./mvnw verify`, BUILD SUCCESS, "All
 | Database schema (optional) | ER diagram in `README.md` §5 (Hibernate generates the tables) | COMPLETE |
 | Postman collection (optional) | not included – the demo uses Swagger UI | MISSING (optional) |
 | Swagger available when running | http://localhost:8080/swagger-ui.html | COMPLETE |
-| Test classes included, tests pass | `src/test/` – 114 passing | COMPLETE |
+| Test classes included, tests pass | `src/test/` – 115 passing | COMPLETE |
 | Coverage report (optional) | `target/site/jacoco/index.html` after `./mvnw verify` | COMPLETE |
 | Defense preparation | `DEFENSE_GUIDE.md` | COMPLETE |
 
@@ -157,7 +157,7 @@ Total: **114 tests, 0 failures, 0 errors** (`./mvnw verify`, BUILD SUCCESS, "All
 |---|---|---|
 | Maven compilation | `./mvnw compile` | success |
 | Application startup | `./mvnw spring-boot:run` | "Started RecipeManagementApplication in 2.6 seconds" |
-| Database initialization | startup log + H2 file created | tables created, 2 accounts + 12 recipes seeded |
+| Database initialization | startup log + H2 file created | tables created, 2 accounts + 5 recipes + 3 meal plans seeded; second start created nothing |
 | Swagger accessibility | `curl /swagger-ui.html` → 302, `/swagger-ui/index.html` → 200, `/v3/api-docs` → 200 | OK; 5 tags in order Authentication, Recipes, Ingredients, Meal Plans, Admin |
 | H2 console (dev) | `curl /h2-console/` | 200 |
 | Authentication | register 201, duplicate 409, login 200, wrong password 401, refresh 200, refresh-token-as-access 401, bad token 401 | OK |
@@ -165,7 +165,7 @@ Total: **114 tests, 0 failures, 0 errors** (`./mvnw verify`, BUILD SUCCESS, "All
 | All CRUD entities | the complete `DEFENSE_GUIDE.md` demo was run with curl on a fresh database | every step returned the documented result |
 | Validation & errors | invalid recipe → 7 field errors; past date 400; bad enum 400; bad id 400; unknown URL 404 | OK |
 | CORS | preflight from `http://localhost:3000` allowed; from another origin 403 | OK |
-| Unit + integration tests | `./mvnw verify` | 114 tests, 0 failures, BUILD SUCCESS |
-| JaCoCo coverage | `target/site/jacoco/jacoco.csv` | service 100.0 % lines, overall 86.6 % lines |
+| Unit + integration tests | `./mvnw verify` | 115 tests, 0 failures, BUILD SUCCESS |
+| JaCoCo coverage | `target/site/jacoco/jacoco.csv` | service 100.0 % lines, overall 96.3 % lines |
 | README accuracy | commands, URLs, credentials, sample JSON compared to real responses | OK |
 | GitHub push | not done | needs the student's GitHub account and permission |

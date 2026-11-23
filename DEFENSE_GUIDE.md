@@ -17,7 +17,7 @@ Practice it 2–3 times before the defense.
    cd ~/Desktop/recipe-management-api
    rm -rf data
    ```
-   The next start creates the test accounts and 12 sample recipes again.
+   The next start creates the test accounts, 5 sample recipes and 3 sample meal plans again.
 4. Charge your laptop. Close other programs that may use port 8080.
 5. Open this file and `README.md` in a second window so you can copy the JSON examples.
 
@@ -46,7 +46,9 @@ Wait 5–10 seconds. When you see this line, the app is ready:
 Started RecipeManagementApplication in ... seconds
 ```
 
-You will also see `Creating local ADMIN account` the first time.
+The first time you also see `Creating local ADMIN account` and
+`Sample data created: 5 recipes and 3 meal plans`. After a restart you see
+`Sample data already exists, nothing created` (no duplicates).
 Leave this Terminal window open. To stop the app later press `Ctrl + C`.
 
 ### Step 3 – Open Swagger
@@ -63,6 +65,20 @@ How to use any endpoint in Swagger:
 3. Change the JSON or the fields.
 4. Click **Execute** (big blue button).
 5. Scroll down to **Server response**: you see the status code and the JSON.
+
+**Sample data that is already in the database** (created automatically, you do not type it):
+
+| ID | Recipe | Time | Servings | Ingredients | Owner |
+|---|---|---|---|---|---|
+| 1 | Pasta | 20 min | 2 | Pasta, Tomato sauce, Cheese | Demo User |
+| 2 | Pizza | 35 min | 4 | Pizza dough, Tomato sauce, Mozzarella | Demo User |
+| 3 | Salad | 10 min | 2 | Lettuce, Tomato, Olive oil | Demo User |
+| 4 | Omelette | 10 min | 1 | Egg, Butter, Salt | Demo Admin |
+| 5 | Soup | 40 min | 4 | Potato, Carrot, Water | Demo Admin |
+
+Meal plans of **Demo User** (`user@recipes.local`): tomorrow BREAKFAST → Omelette,
+tomorrow LUNCH → Salad, the day after tomorrow DINNER → Pasta.
+(The dates are counted from the day the database was created.)
 
 ### Step 4 – Register a user
 
@@ -135,27 +151,27 @@ To show 401: click **Authorize → Logout**, then call `GET /api/recipes` → **
 }
 ```
 
-Execute → **201 Created**. Write down the `id` (on a fresh database it is **13**).
+Execute → **201 Created**. Write down the `id` (on a fresh database it is **6**, after the 5 sample recipes).
 
 Say: *"The ingredients are saved together with the recipe because of `cascade = CascadeType.ALL`."*
 
 ### Step 9 – View recipes
 
-- **GET /api/recipes/{id}** → id = 13 → you see the recipe, its ingredients and the `audit` block.
-- **GET /api/recipes** → all recipes, page 0, 10 per page.
+- **GET /api/recipes/{id}** → id = 6 → you see the recipe, its ingredients and the `audit` block.
+- **GET /api/recipes** → all 6 recipes (5 samples + yours), page 0, 10 per page.
 - **GET /api/recipes/my** → only your own recipes.
-- **GET /api/recipes/search** → keyword = `soup` → "Lentil Soup" and "Tomato Soup".
+- **GET /api/recipes/search** → keyword = `soup` → "Soup".
 
 ### Step 10 – Add ingredients
 
-**Ingredients → POST /api/recipes/{recipeId}/ingredients** → recipeId = 13:
+**Ingredients → POST /api/recipes/{recipeId}/ingredients** → recipeId = 6:
 
 ```json
 { "name": "Onion", "quantity": 1, "unit": "piece" }
 ```
 
 Execute → **201**. Write down the ingredient `id`.
-Then **GET /api/recipes/{recipeId}/ingredients** → recipeId = 13 → you see 3 ingredients.
+Then **GET /api/recipes/{recipeId}/ingredients** → recipeId = 6 → you see 3 ingredients.
 
 ### Step 11 – Create a meal plan
 
@@ -165,18 +181,19 @@ Then **GET /api/recipes/{recipeId}/ingredients** → recipeId = 13 → you see 3
 {
   "date": "2026-12-01",
   "mealType": "DINNER",
-  "recipeId": 13
+  "recipeId": 6
 }
 ```
 
 Execute → **201**. Then **GET /api/meal-plans** → your meal plans.
+(Meal plans are private: you only see your own. The 3 sample meal plans belong to `user@recipes.local`.)
 
 Execute the same POST again → **409 Conflict** "You already have a DINNER planned on 2026-12-01"
 (business rule: one meal per date and meal type).
 
 ### Step 12 – Edit and delete records
 
-**Update the recipe** – **PUT /api/recipes/{id}** → id = 13:
+**Update the recipe** – **PUT /api/recipes/{id}** → id = 6:
 
 ```json
 {
@@ -200,32 +217,33 @@ Look at `audit.updatedAt` – it changed.
 **Update the meal plan** – **PUT /api/meal-plans/{id}** (id from Step 11):
 
 ```json
-{ "date": "2026-12-01", "mealType": "LUNCH", "recipeId": 13 }
+{ "date": "2026-12-01", "mealType": "LUNCH", "recipeId": 6 }
 ```
 
 **Delete** – in this order:
 1. **DELETE /api/recipes/{recipeId}/ingredients/{ingredientId}** → **204 No Content**
 2. **DELETE /api/meal-plans/{id}** → **204**
-3. (optional) **DELETE /api/recipes/{id}** → **204**. Then **GET /api/recipes/13** → **404 Not Found**.
+3. (optional) **DELETE /api/recipes/{id}** → **204**. Then **GET /api/recipes/6** → **404 Not Found**.
 
 Say: *"Deleting a recipe also deletes its ingredients (cascade + orphanRemoval) and the meal plans that use it."*
 
 ### Step 13 – Demonstrate pagination
 
 **GET /api/recipes**:
-- page = `0`, size = `5`
+- page = `0`, size = `2`
 - sort: change the first item to `preparationTime,asc`, click **Add string item**, type `title,asc`.
 
 Execute. Show in the response:
 
 ```json
-"page": 0, "size": 5, "totalElements": 13, "totalPages": 3, "first": true, "last": false,
+"page": 0, "size": 2, "totalElements": 6, "totalPages": 3, "first": true, "last": false,
 "sort": "preparationTime: ASC,title: ASC"
 ```
 
-(`totalElements` is 13 = 12 sample recipes + yours; it is 12 if you deleted your recipe in Step 12.)
+The first page shows **Omelette** and **Salad** (both 10 minutes, then sorted by title).
+(`totalElements` is 6 = 5 sample recipes + yours; it is 5 if you deleted your recipe in Step 12.)
 
-Change page to `1` → next 5 recipes. Change page to `2` → `"last": true`.
+Change page to `1` → the next 2 recipes. Change page to `2` → `"last": true`.
 
 Show protection: sort = `password` → **400** "Cannot sort by 'password'. Allowed sort fields: ..."
 
@@ -269,7 +287,7 @@ More examples:
 
 ### Step 15 – Demonstrate audit information
 
-1. **GET /api/recipes/13** → look at:
+1. **GET /api/recipes/6** → look at:
    ```json
    "audit": {
      "createdAt": "2026-11-25T10:15:30",
@@ -278,7 +296,7 @@ More examples:
      "lastModifiedBy": "doga@example.com"
    }
    ```
-2. Log in as **admin** (Step 16), then **PUT /api/recipes/1** (a recipe of the demo user) with any valid body.
+2. Log in as **admin** (Step 16), then **PUT /api/recipes/1** (Pasta, a recipe of the demo user) with any valid body.
    Now `createdBy` = `system` (created by the data seeder) and `lastModifiedBy` = `admin@recipes.local`.
 
 Say: *"I did not write any code in the services to set these fields. Spring Data JPA fills them automatically because the entity extends `AuditableEntity`."*
@@ -294,7 +312,8 @@ Test accounts (created automatically in the dev profile):
 
 **As USER** (log in as `user@recipes.local`, Authorize with the new token):
 1. **GET /api/admin/stats** → **403 Forbidden** "You do not have permission to access this resource."
-2. **PUT /api/recipes/8** (recipe 8 belongs to the admin) → **403** "You can only modify your own recipes".
+2. **GET /api/meal-plans** → the 3 sample meal plans (Omelette, Salad, Pasta).
+3. **PUT /api/recipes/4** (Omelette belongs to the admin) → **403** "You can only modify your own recipes".
 
 **As ADMIN** (log in as `admin@recipes.local`, Authorize → Logout → paste the admin token):
 1. **GET /api/admin/stats** → **200** with numbers.
@@ -315,7 +334,7 @@ cd ~/Desktop/recipe-management-api
 At the end you see:
 
 ```
-Tests run: 114, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 115, Failures: 0, Errors: 0, Skipped: 0
 All coverage checks have been met.
 BUILD SUCCESS
 ```
@@ -326,7 +345,7 @@ Open the coverage report:
 open target/site/jacoco/index.html
 ```
 
-Show: service package 100% lines, total 86.6% lines (goal was 70% and 60%).
+Show: service package 100% lines, total 96.3% lines (goal was 70% and 60%).
 
 ---
 
@@ -413,7 +432,7 @@ See Part E below.
 | `IngredientQuantityValidator` | Custom validator: for piece/slice/clove the quantity must be a whole number. |
 | `OpenApiConfig` | Swagger title, groups (tags) and the JWT "Authorize" button. |
 | `JpaAuditingConfig` | Turns on auditing and tells Spring who the current user is. |
-| `DataSeeder` | In the dev profile: creates the admin, the user and 12 sample recipes if they do not exist. |
+| `DataSeeder` | In the dev profile: creates the admin, the user, 5 sample recipes and 3 meal plans – only if the recipes table is empty (no duplicates). |
 | DTOs (`RecipeRequest`, `RecipeResponse`, ...) | Simple Java `record`s. Requests carry validation rules. Responses never contain passwords. |
 
 ### What happens when I call `POST /api/recipes`? (learn this flow!)
@@ -572,7 +591,7 @@ It tests one class alone. In `RecipeServiceTest` I use Mockito: repositories are
 It tests many parts together. `@SpringBootTest` + `@AutoConfigureMockMvc` starts the full app with an in-memory H2. `MockMvc` sends real HTTP requests through security, validation, controller, service and database.
 
 **How many tests and what coverage?**
-114 tests, all passing. JaCoCo: service layer 100% lines, overall 86.6% lines. `./mvnw verify` fails if coverage drops below 70% (service) or 60% (overall).
+115 tests, all passing. JaCoCo: service layer 100% lines, overall 96.3% lines. `./mvnw verify` fails if coverage drops below 70% (service) or 60% (overall).
 
 **What is `@DataJpaTest`?**
 Starts only the JPA part with an in-memory database to test repositories (my search query, paging, cascade delete).
@@ -609,4 +628,4 @@ It is one of the professor's suggested topics, it is different from my mobile pr
 - [ ] I can explain my two custom validators.
 - [ ] I can explain how `@CreatedBy` gets the user (`JpaAuditingConfig`).
 - [ ] I can explain one unit test (`RecipeServiceTest.otherUserCannotUpdateRecipe`) and one integration test (`RecipeControllerIntegrationTest.listRecipesWithPaginationAndMultipleSortFields`).
-- [ ] I know the test numbers: 114 tests, service 100%, overall 86.6% line coverage.
+- [ ] I know the test numbers: 115 tests, service 100%, overall 96.3% line coverage.
